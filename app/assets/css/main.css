@@ -109,19 +109,19 @@
   }
 
   .badge-primary {
-    @apply badge bg-primary-500/20 text-primary-300;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-500/20 text-primary-300;
   }
 
   .badge-success {
-    @apply badge bg-emerald-500/20 text-emerald-300;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300;
   }
 
   .badge-warning {
-    @apply badge bg-amber-500/20 text-amber-300;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300;
   }
 
   .badge-neutral {
-    @apply badge bg-surface-700 text-surface-300;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-700 text-surface-300;
   }
 
   .overlay {
