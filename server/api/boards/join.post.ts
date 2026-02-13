@@ -1,3 +1,5 @@
+import { MAX_PARTICIPANTS_PER_BOARD } from '~~/shared/constants'
+
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
@@ -37,7 +39,7 @@ export default defineEventHandler(async (event) => {
     .select('*', { count: 'exact', head: true })
     .eq('board_id', board.id)
 
-  if (count !== null && count >= 10) {
+  if (count !== null && count >= MAX_PARTICIPANTS_PER_BOARD) {
     // Check if device already has a participant (re-join is allowed)
     const { data: existing } = await supabase
       .from('participants')
@@ -47,7 +49,7 @@ export default defineEventHandler(async (event) => {
       .maybeSingle()
 
     if (!existing) {
-      throw createError({ statusCode: 429, message: 'This board is full (10/10 participants)' })
+      throw createError({ statusCode: 429, message: `This board is full (${MAX_PARTICIPANTS_PER_BOARD}/${MAX_PARTICIPANTS_PER_BOARD} participants)` })
     }
   }
 

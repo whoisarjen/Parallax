@@ -31,7 +31,7 @@
           <!-- Action buttons -->
           <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
-              href="https://github.com/kamilowczarek/Parallax"
+              href="https://github.com/whoisarjen/Parallax"
               target="_blank"
               rel="noopener noreferrer"
               class="btn-primary inline-flex items-center gap-2.5 text-base px-7 py-3.5 shadow-lg shadow-primary-600/20"
@@ -42,7 +42,7 @@
               Star on GitHub
             </a>
             <a
-              href="https://github.com/kamilowczarek/Parallax/issues"
+              href="https://github.com/whoisarjen/Parallax/issues"
               target="_blank"
               rel="noopener noreferrer"
               class="btn-secondary inline-flex items-center gap-2.5 text-base px-7 py-3.5"

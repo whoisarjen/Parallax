@@ -21,7 +21,7 @@
             My Boards
           </NuxtLink>
           <a
-            href="https://github.com/kamilowczarek/Parallax"
+            href="https://github.com/whoisarjen/Parallax"
             target="_blank"
             rel="noopener noreferrer"
             class="btn-ghost text-sm flex items-center gap-1.5"

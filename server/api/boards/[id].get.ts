@@ -1,3 +1,5 @@
+import { BOARD_EXPIRY_MS } from '~~/shared/constants'
+
 export default defineEventHandler(async (event) => {
   const boardId = getRouterParam(event, 'id')
 
@@ -46,7 +48,7 @@ export default defineEventHandler(async (event) => {
   // Auto-extend expiry on access
   await supabase
     .from('boards')
-    .update({ expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() })
+    .update({ expires_at: new Date(Date.now() + BOARD_EXPIRY_MS).toISOString() })
     .eq('id', board.id)
 
   return board

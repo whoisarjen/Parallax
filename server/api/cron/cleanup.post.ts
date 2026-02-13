@@ -1,3 +1,5 @@
+import { HARD_DELETE_AFTER_MS } from '~~/shared/constants'
+
 export default defineEventHandler(async (event) => {
   // Verify cron secret
   const authHeader = getHeader(event, 'authorization')
@@ -9,7 +11,7 @@ export default defineEventHandler(async (event) => {
 
   const supabase = useServerSupabase()
   const now = new Date().toISOString()
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const sevenDaysAgo = new Date(Date.now() - HARD_DELETE_AFTER_MS).toISOString()
 
   // Step 1: Soft-delete boards where expires_at < now
   const { data: softDeleted, error: softError } = await supabase

@@ -1,4 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto'
+import { MAX_BOARDS_PER_DEVICE } from '~~/shared/constants'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -22,8 +23,8 @@ export default defineEventHandler(async (event) => {
     .eq('created_by_device', deviceId)
     .is('deleted_at', null)
 
-  if (count !== null && count >= 10) {
-    throw createError({ statusCode: 429, message: 'You have reached the maximum of 10 boards. Delete an existing board to create a new one.' })
+  if (count !== null && count >= MAX_BOARDS_PER_DEVICE) {
+    throw createError({ statusCode: 429, message: `You have reached the maximum of ${MAX_BOARDS_PER_DEVICE} boards. Delete an existing board to create a new one.` })
   }
 
   // Generate a display code (kept for DB constraint, not used for routing)

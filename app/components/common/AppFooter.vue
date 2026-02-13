@@ -37,7 +37,7 @@
           <ul class="space-y-3">
             <li>
               <a
-                href="https://github.com/kamilowczarek/Parallax"
+                href="https://github.com/whoisarjen/Parallax"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-sm text-surface-500 hover:text-surface-300 transition-colors"
@@ -47,7 +47,7 @@
             </li>
             <li>
               <a
-                href="https://github.com/kamilowczarek/Parallax/issues"
+                href="https://github.com/whoisarjen/Parallax/issues"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-sm text-surface-500 hover:text-surface-300 transition-colors"
@@ -57,7 +57,7 @@
             </li>
             <li>
               <a
-                href="https://github.com/kamilowczarek/Parallax/blob/main/README.md"
+                href="https://github.com/whoisarjen/Parallax/blob/main/README.md"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-sm text-surface-500 hover:text-surface-300 transition-colors"
@@ -90,7 +90,7 @@
       <!-- Bottom bar -->
       <div class="py-6 border-t border-surface-800/50 flex flex-col sm:flex-row items-center justify-between gap-4">
         <p class="text-xs text-surface-600">
-          No data collected. Sessions expire after 24 hours of inactivity.
+          No data collected. Sessions expire after {{ expiryLabel }} of inactivity.
         </p>
         <p class="text-xs text-surface-600">
           &copy; {{ new Date().getFullYear() }} Parallax. Open source under MIT.
@@ -99,3 +99,9 @@
     </div>
   </footer>
 </template>
+
+<script setup lang="ts">
+import { BOARD_EXPIRY_LABEL } from '~~/shared/constants'
+
+const expiryLabel = BOARD_EXPIRY_LABEL
+</script>
