@@ -76,7 +76,7 @@
           </div>
           <h3 class="text-xl font-semibold text-surface-100">Share</h3>
           <p class="mt-3 text-surface-400 text-sm leading-relaxed max-w-[240px]">
-            Share a simple 4+4 code with your team. They join instantly.
+            Share the invite link with your team. They join instantly.
           </p>
         </div>
 

@@ -70,7 +70,7 @@
           </div>
           <h3 class="text-lg font-semibold text-surface-100">No Sign-Up</h3>
           <p class="mt-3 text-surface-400 text-sm leading-relaxed">
-            Jump right in. No accounts, no passwords, no friction. Share a code and start estimating.
+            Jump right in. No accounts, no passwords, no friction. Share a link and start estimating.
           </p>
           <!-- Visual: quick start flow -->
           <div class="mt-6 space-y-2">
@@ -81,7 +81,7 @@
             </div>
             <div class="flex items-center gap-2 text-xs">
               <span class="w-5 h-5 rounded-full bg-primary-500/20 text-primary-400 flex items-center justify-center font-semibold text-[10px]">2</span>
-              <span class="text-surface-400">Share code</span>
+              <span class="text-surface-400">Share link</span>
               <span class="text-surface-600 ml-auto font-mono">3s</span>
             </div>
             <div class="flex items-center gap-2 text-xs">

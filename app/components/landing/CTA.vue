@@ -31,7 +31,7 @@
           class="btn-secondary text-base px-7 py-3.5 inline-flex items-center gap-2"
           @click="$emit('join')"
         >
-          Join with Code
+          Join a Board
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
           </svg>
