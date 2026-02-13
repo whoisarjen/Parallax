@@ -1,14 +1,15 @@
 <template>
   <div>
     <!-- Landing sections -->
-    <LandingHero @create="showCreateDialog = true" @join="handleJoinFromHero" />
+    <LandingHero @create="openCreateDialog" @join="handleJoinFromHero" />
     <LandingHowItWorks />
     <LandingFeatures />
 
     <!-- Recent Boards section -->
-    <section v-if="recentBoards.length > 0" class="py-16 sm:py-20">
+    <section v-if="recentBoards.length > 0" class="py-16 sm:py-20 reveal">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-10">
+          <p class="text-sm font-semibold text-primary-400 uppercase tracking-widest mb-3">Continue</p>
           <h2 class="text-2xl sm:text-3xl font-bold tracking-tight">
             Your Recent Boards
           </h2>
@@ -57,14 +58,9 @@
     </section>
 
     <LandingOpenSource />
+    <LandingCTA @create="openCreateDialog" @join="showJoinDialog = true" />
 
-    <!-- Modals -->
-    <CommonCreateBoardDialog
-      v-if="showCreateDialog"
-      @close="showCreateDialog = false"
-      @created="handleCreated"
-    />
-
+    <!-- Join dialog -->
     <CommonJoinBoardDialog
       v-if="showJoinDialog"
       @close="showJoinDialog = false"
@@ -78,10 +74,11 @@ definePageMeta({
   layout: 'default',
 })
 
-const router = useRouter()
+useScrollReveal()
+
+const { openCreateDialog } = useCreateDialog()
 const { getRecentBoards, getDisplayName, setDisplayName, addRecentBoard, deviceId } = useDeviceIdentity()
 
-const showCreateDialog = ref(false)
 const showJoinDialog = ref(false)
 
 const recentBoards = ref<Array<{ code: string; name: string; createdAt: string }>>([])
@@ -90,15 +87,9 @@ onMounted(() => {
   recentBoards.value = getRecentBoards().slice(0, 6)
 })
 
-function handleCreated(code: string) {
-  showCreateDialog.value = false
-  navigateTo(`/board/${code}`)
-}
-
 function handleJoinFromHero(code: string) {
   const displayName = getDisplayName()
   if (displayName) {
-    // If user has a saved name, join directly
     joinBoard(code, displayName)
   } else {
     showJoinDialog.value = true
@@ -125,7 +116,6 @@ async function joinBoard(code: string, displayName: string) {
     addRecentBoard(code, code)
     navigateTo(`/board/${code}`)
   } catch {
-    // If direct join fails, open the dialog
     showJoinDialog.value = true
   }
 }
