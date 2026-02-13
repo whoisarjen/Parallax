@@ -99,7 +99,19 @@
           <!-- Estimate badge -->
           <div class="shrink-0">
             <span
-              v-if="issue.final_estimate"
+              v-if="issue.final_estimate && isFacilitator"
+              class="badge-success text-xs font-mono font-bold group-hover:hidden"
+            >
+              {{ issue.final_estimate }}
+            </span>
+            <span
+              v-if="issue.final_estimate && isFacilitator"
+              class="hidden group-hover:inline badge-primary text-[10px]"
+            >
+              re-vote
+            </span>
+            <span
+              v-if="issue.final_estimate && !isFacilitator"
               class="badge-success text-xs font-mono font-bold"
             >
               {{ issue.final_estimate }}
@@ -165,7 +177,9 @@ function issueClasses(issue: Issue): string {
     return 'bg-primary-500/10 border border-primary-500/30 ring-1 ring-primary-500/20'
   }
   if (issue.status === 'estimated') {
-    return 'bg-surface-800/30 hover:bg-surface-800/50 border border-transparent'
+    return props.isFacilitator
+      ? 'bg-surface-800/30 hover:bg-surface-800/50 border border-transparent cursor-pointer'
+      : 'bg-surface-800/30 border border-transparent'
   }
   return 'hover:bg-surface-800/50 border border-transparent'
 }
@@ -203,7 +217,6 @@ async function handleAddIssue() {
 
 function handleIssueClick(issue: Issue) {
   if (!props.isFacilitator) return
-  if (issue.status === 'estimated') return
   emit('startVoting', issue.id)
 }
 
