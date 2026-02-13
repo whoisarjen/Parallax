@@ -7,20 +7,36 @@ export default defineEventHandler(async (event) => {
 
   const supabase = useServerSupabase()
 
-  const { data: board, error } = await supabase
+  // Fetch board separately from relations for better error isolation
+  const { data: board, error: boardError } = await supabase
     .from('boards')
-    .select(`
-      *,
-      participants (*),
-      issues (*)
-    `)
+    .select('*')
     .eq('id', boardId)
     .is('deleted_at', null)
     .single()
 
-  if (error || !board) {
-    throw createError({ statusCode: 404, message: 'Board not found' })
+  if (boardError || !board) {
+    throw createError({
+      statusCode: 404,
+      message: `Board not found (id: ${boardId}, error: ${boardError?.message || 'no data'}, code: ${boardError?.code || 'none'})`,
+    })
   }
+
+  // Fetch participants
+  const { data: participants } = await supabase
+    .from('participants')
+    .select('*')
+    .eq('board_id', board.id)
+
+  // Fetch issues
+  const { data: issues } = await supabase
+    .from('issues')
+    .select('*')
+    .eq('board_id', board.id)
+    .order('sort_order', { ascending: true })
+
+  board.participants = participants || []
+  board.issues = issues || []
 
   // Check if board has expired
   if (new Date(board.expires_at) < new Date()) {
@@ -32,11 +48,6 @@ export default defineEventHandler(async (event) => {
     .from('boards')
     .update({ expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() })
     .eq('id', board.id)
-
-  // Sort issues by sort_order
-  if (board.issues) {
-    board.issues.sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order)
-  }
 
   return board
 })
