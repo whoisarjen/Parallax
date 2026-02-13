@@ -143,7 +143,7 @@ const props = defineProps<{
   issues: Issue[]
   currentIssueId: string | null
   isFacilitator: boolean
-  boardCode: string
+  boardId: string
 }>()
 
 const emit = defineEmits<{
@@ -152,7 +152,7 @@ const emit = defineEmits<{
   issueDeleted: []
 }>()
 
-const { parseJiraInput, addIssue, deleteIssue } = useIssues(props.boardCode)
+const { parseJiraInput, addIssue, deleteIssue } = useIssues(props.boardId)
 
 const newIssueTitle = ref('')
 const newIssueDescription = ref('')

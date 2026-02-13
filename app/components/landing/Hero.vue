@@ -94,17 +94,15 @@
             @submit.prevent="handleJoin"
           >
             <input
-              v-model="joinCodeDisplay"
+              v-model="joinInput"
               type="text"
-              placeholder="ABCD-1234"
-              maxlength="9"
-              aria-label="Board code"
-              class="bg-transparent px-4 py-4 text-surface-100 placeholder-surface-500 font-mono text-lg tracking-wider uppercase w-40 sm:w-44 focus:outline-none"
-              @input="onCodeInput"
+              placeholder="Paste invite link"
+              aria-label="Board invite link"
+              class="bg-transparent px-4 py-4 text-surface-100 placeholder-surface-500 text-base w-48 sm:w-56 focus:outline-none"
             />
             <button
               type="submit"
-              :disabled="!isCodeValid"
+              :disabled="!isInputValid"
               class="bg-surface-700 hover:bg-surface-600 text-surface-100 font-semibold px-6 py-4 text-base transition-colors duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Join
@@ -132,7 +130,7 @@
             </div>
             <div class="flex-1 flex justify-center">
               <div class="bg-surface-800 rounded-md px-4 py-1 text-xs text-surface-500 font-mono">
-                parallax.app/board/ABCD-1234
+                parallax.app/board/session
               </div>
             </div>
             <div class="w-[54px]" />
@@ -225,10 +223,10 @@
 <script setup lang="ts">
 const emit = defineEmits<{
   create: []
-  join: [code: string]
+  join: [boardId: string]
 }>()
 
-const joinCodeDisplay = ref('')
+const joinInput = ref('')
 
 const mockParticipants = [
   { name: 'Sarah', color: 'bg-primary-500/30 text-primary-300', online: true, voted: true },
@@ -238,26 +236,11 @@ const mockParticipants = [
   { name: 'Chris', color: 'bg-sky-500/30 text-sky-300', online: true, voted: false },
 ]
 
-const isCodeValid = computed(() => {
-  const raw = joinCodeDisplay.value.replace(/[^A-Z0-9]/gi, '')
-  return raw.length === 8
-})
-
-function onCodeInput(event: Event) {
-  const input = event.target as HTMLInputElement
-  const raw = input.value.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-
-  if (raw.length > 4) {
-    joinCodeDisplay.value = raw.slice(0, 4) + '-' + raw.slice(4, 8)
-  } else {
-    joinCodeDisplay.value = raw
-  }
-}
+const extractedBoardId = computed(() => extractBoardId(joinInput.value))
+const isInputValid = computed(() => !!extractedBoardId.value)
 
 function handleJoin() {
-  if (!isCodeValid.value) return
-  const raw = joinCodeDisplay.value.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-  const code = raw.slice(0, 4) + '-' + raw.slice(4, 8)
-  emit('join', code)
+  if (!extractedBoardId.value) return
+  emit('join', extractedBoardId.value)
 }
 </script>

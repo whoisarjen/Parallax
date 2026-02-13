@@ -1,7 +1,7 @@
 export default defineEventHandler(async (event) => {
-  const code = getRouterParam(event, 'code')
-  if (!code) {
-    throw createError({ statusCode: 400, message: 'Board code is required' })
+  const boardId = getRouterParam(event, 'id')
+  if (!boardId) {
+    throw createError({ statusCode: 400, message: 'Board ID is required' })
   }
 
   const body = await readBody(event)
@@ -22,14 +22,11 @@ export default defineEventHandler(async (event) => {
 
   const supabase = useServerSupabase()
 
-  const normalizedCode = code.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-  const formattedCode = normalizedCode.slice(0, 4) + '-' + normalizedCode.slice(4)
-
   // Fetch board
   const { data: board } = await supabase
     .from('boards')
     .select('id, voting_state, current_issue_id')
-    .eq('code', formattedCode)
+    .eq('id', boardId)
     .is('deleted_at', null)
     .single()
 

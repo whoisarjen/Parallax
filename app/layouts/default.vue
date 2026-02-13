@@ -18,8 +18,8 @@
 <script setup lang="ts">
 const { showCreateDialog, closeCreateDialog } = useCreateDialog()
 
-function handleCreated(code: string) {
+function handleCreated(id: string) {
   closeCreateDialog()
-  navigateTo(`/board/${code}`)
+  navigateTo(`/board/${id}`)
 }
 </script>

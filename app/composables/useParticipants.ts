@@ -1,13 +1,13 @@
 import type { Participant, ParticipantRole } from '~/types'
 
-export function useParticipants(boardCode: string) {
+export function useParticipants(boardId: string) {
   const supabase = useSupabase()
 
-  async function fetchParticipants(boardId: string): Promise<Participant[]> {
+  async function fetchParticipants(boardDbId: string): Promise<Participant[]> {
     const { data, error } = await supabase
       .from('participants')
       .select('*')
-      .eq('board_id', boardId)
+      .eq('board_id', boardDbId)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -23,7 +23,7 @@ export function useParticipants(boardCode: string) {
     role: ParticipantRole,
     token: string,
   ) {
-    return await $fetch(`/api/boards/${boardCode}/participants/${participantId}`, {
+    return await $fetch(`/api/boards/${boardId}/participants/${participantId}`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -36,7 +36,7 @@ export function useParticipants(boardCode: string) {
     participantId: string,
     token: string,
   ) {
-    return await $fetch(`/api/boards/${boardCode}/participants/${participantId}`, {
+    return await $fetch(`/api/boards/${boardId}/participants/${participantId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,

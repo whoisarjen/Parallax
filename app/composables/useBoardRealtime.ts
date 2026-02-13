@@ -18,8 +18,8 @@ interface BroadcastTimerEvent {
 }
 
 export function useBoardRealtime(
-  boardCode: string,
-  boardId: Ref<string | undefined>,
+  boardId: string,
+  boardDbId: Ref<string | undefined>,
   participant: Ref<Participant | undefined>,
   callbacks: {
     onParticipantsChanged?: () => void
@@ -42,11 +42,11 @@ export function useBoardRealtime(
   let subscribed = false
 
   function getChannelName() {
-    return `board:${boardCode}`
+    return `board:${boardId}`
   }
 
   function subscribe() {
-    if (subscribed || !boardId.value) return
+    if (subscribed || !boardDbId.value) return
 
     const channelName = getChannelName()
 
@@ -153,7 +153,7 @@ export function useBoardRealtime(
         event: '*',
         schema: 'public',
         table: 'boards',
-        filter: `id=eq.${boardId.value}`,
+        filter: `id=eq.${boardDbId.value}`,
       },
       (payload) => {
         if (payload.new && typeof payload.new === 'object') {
@@ -175,7 +175,7 @@ export function useBoardRealtime(
         event: '*',
         schema: 'public',
         table: 'participants',
-        filter: `board_id=eq.${boardId.value}`,
+        filter: `board_id=eq.${boardDbId.value}`,
       },
       () => {
         callbacks.onParticipantsChanged?.()
@@ -188,7 +188,7 @@ export function useBoardRealtime(
         event: '*',
         schema: 'public',
         table: 'issues',
-        filter: `board_id=eq.${boardId.value}`,
+        filter: `board_id=eq.${boardDbId.value}`,
       },
       () => {
         callbacks.onIssuesChanged?.()
@@ -327,8 +327,8 @@ export function useBoardRealtime(
     window.addEventListener('beforeunload', handleBeforeUnload)
   }
 
-  // Watch for boardId becoming available to auto-subscribe
-  watch(boardId, (newId) => {
+  // Watch for boardDbId becoming available to auto-subscribe
+  watch(boardDbId, (newId) => {
     if (newId && !subscribed) {
       subscribe()
     }

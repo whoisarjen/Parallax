@@ -86,7 +86,7 @@ https://team.atlassian.net/browse/PROJ-125 Update API docs"
 
 <script setup lang="ts">
 const props = defineProps<{
-  boardCode: string
+  boardId: string
 }>()
 
 const emit = defineEmits<{
@@ -153,10 +153,10 @@ async function handleImport() {
   importing.value = true
   error.value = ''
 
-  const facilitatorToken = getFacilitatorToken(props.boardCode)
+  const facilitatorToken = getFacilitatorToken(props.boardId)
 
   try {
-    await $fetch(`/api/boards/${props.boardCode}/issues/bulk`, {
+    await $fetch(`/api/boards/${props.boardId}/issues/bulk`, {
       method: 'POST',
       headers: facilitatorToken
         ? { Authorization: `Bearer ${facilitatorToken}` }

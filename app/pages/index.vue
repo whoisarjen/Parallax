@@ -21,8 +21,8 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mx-auto">
           <NuxtLink
             v-for="board in recentBoards"
-            :key="board.code"
-            :to="`/board/${board.code}`"
+            :key="board.id"
+            :to="`/board/${board.id}`"
             class="card-hover flex items-center gap-4 group"
           >
             <div
@@ -35,9 +35,6 @@
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-surface-100 truncate">
                 {{ board.name }}
-              </p>
-              <p class="text-xs text-surface-500 font-mono mt-0.5">
-                {{ board.code }}
               </p>
             </div>
             <svg class="w-4 h-4 text-surface-600 group-hover:text-primary-400 transition-colors shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -81,42 +78,44 @@ const { getRecentBoards, getDisplayName, setDisplayName, addRecentBoard, deviceI
 
 const showJoinDialog = ref(false)
 
-const recentBoards = ref<Array<{ code: string; name: string; createdAt: string }>>([])
+const recentBoards = ref<Array<{ id: string; name: string; createdAt: string }>>([])
 
 onMounted(() => {
   recentBoards.value = getRecentBoards().slice(0, 6)
 })
 
-function handleJoinFromHero(code: string) {
+function handleJoinFromHero(boardId: string) {
   const displayName = getDisplayName()
   if (displayName) {
-    joinBoard(code, displayName)
+    joinBoard(boardId, displayName)
   } else {
-    showJoinDialog.value = true
+    // Navigate directly to the board page which has its own join UI
+    navigateTo(`/board/${boardId}`)
   }
 }
 
-function handleJoined(code: string) {
+function handleJoined(boardId: string) {
   showJoinDialog.value = false
-  navigateTo(`/board/${code}`)
+  navigateTo(`/board/${boardId}`)
 }
 
-async function joinBoard(code: string, displayName: string) {
+async function joinBoard(boardId: string, displayName: string) {
   try {
     await $fetch('/api/boards/join', {
       method: 'POST',
       body: {
-        code,
+        boardId,
         displayName,
         deviceId: deviceId.value,
       },
     })
 
     setDisplayName(displayName)
-    addRecentBoard(code, code)
-    navigateTo(`/board/${code}`)
+    addRecentBoard(boardId, displayName)
+    navigateTo(`/board/${boardId}`)
   } catch {
-    showJoinDialog.value = true
+    // If join fails, navigate to the board page which has its own join UI
+    navigateTo(`/board/${boardId}`)
   }
 }
 </script>

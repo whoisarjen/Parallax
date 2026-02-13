@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { H3Event } from 'h3'
 
-export async function validateFacilitatorToken(event: H3Event, boardCode: string) {
+export async function validateFacilitatorToken(event: H3Event, boardId: string) {
   const authHeader = getHeader(event, 'authorization')
 
   if (!authHeader?.startsWith('Bearer ')) {
@@ -13,13 +13,10 @@ export async function validateFacilitatorToken(event: H3Event, boardCode: string
 
   const supabase = useServerSupabase()
 
-  const normalizedCode = boardCode.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-  const formattedCode = normalizedCode.slice(0, 4) + '-' + normalizedCode.slice(4)
-
   const { data: board } = await supabase
     .from('boards')
     .select('id, facilitator_token_hash')
-    .eq('code', formattedCode)
+    .eq('id', boardId)
     .is('deleted_at', null)
     .single()
 

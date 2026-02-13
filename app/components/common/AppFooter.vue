@@ -6,7 +6,7 @@
         <!-- Brand column -->
         <div class="col-span-2 sm:col-span-1">
           <NuxtLink to="/" class="flex items-center gap-3 mb-4">
-            <img src="/parallax-logo.png" alt="Parallax" class="h-8 w-8 rounded-lg" />
+            <img src="/parallax-logo.png" alt="Parallax" class="h-9 w-9" />
             <span class="text-lg font-bold text-surface-100">Parallax</span>
           </NuxtLink>
           <p class="text-sm text-surface-500 leading-relaxed max-w-60">

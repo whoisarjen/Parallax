@@ -9,7 +9,7 @@
           <img
             src="/parallax-logo.png"
             alt="Parallax"
-            class="h-8 w-8 rounded-lg"
+            class="h-9 w-9"
           />
           <span class="text-lg font-bold text-surface-100 group-hover:text-primary-400 transition-colors">
             Parallax

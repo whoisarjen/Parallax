@@ -115,7 +115,7 @@
             :issues="issues"
             :current-issue-id="currentIssueId"
             :is-facilitator="isFacilitator"
-            :board-code="boardCode"
+            :board-id="boardId"
             @start-voting="handleStartVoting"
             @issue-added="refreshIssues"
             @issue-deleted="refreshIssues"
@@ -233,13 +233,13 @@ definePageMeta({
 })
 
 const route = useRoute()
-const boardCode = route.params.code as string
+const boardId = route.params.id as string
 
 // Device identity
 const { deviceId, getDisplayName, setDisplayName, getFacilitatorToken, addRecentBoard } = useDeviceIdentity()
 
 // Board data
-const { board, participants, issues, loading, error, errorStatus, fetchBoard, refreshParticipants, refreshIssues } = useBoard(boardCode)
+const { board, participants, issues, loading, error, errorStatus, fetchBoard, refreshParticipants, refreshIssues } = useBoard(boardId)
 
 // Mobile tab
 const mobileTab = ref<'issues' | 'vote' | 'people'>('vote')
@@ -273,7 +273,7 @@ const canVote = computed(() => {
 
 // Facilitator token
 const facilitatorToken = computed(() => {
-  return getFacilitatorToken(boardCode)
+  return getFacilitatorToken(boardId)
 })
 
 // Deck cards
@@ -282,8 +282,8 @@ const deckCards = computed(() => {
   return getDeckCards(board.value.deck_type, board.value.custom_deck)
 })
 
-// Board ID ref for realtime
-const boardIdRef = computed(() => board.value?.id)
+// Board DB ID ref for realtime (resolves after board is fetched)
+const boardDbId = computed(() => board.value?.id)
 
 // Realtime
 const {
@@ -297,7 +297,7 @@ const {
   broadcastVotesRevealed,
   broadcastVotingStarted,
   broadcastVotingReset,
-} = useBoardRealtime(boardCode, boardIdRef, myParticipant, {
+} = useBoardRealtime(boardId, boardDbId, myParticipant, {
   onParticipantsChanged: () => refreshParticipants(),
   onIssuesChanged: () => refreshIssues(),
   onBoardChanged: () => {
@@ -340,7 +340,7 @@ async function handleJoin() {
     await $fetch('/api/boards/join', {
       method: 'POST',
       body: {
-        code: boardCode,
+        boardId,
         displayName: joinDisplayName.value.trim(),
         deviceId: deviceId.value,
       },
@@ -348,7 +348,7 @@ async function handleJoin() {
 
     setDisplayName(joinDisplayName.value.trim())
     if (board.value) {
-      addRecentBoard(board.value.code, board.value.name)
+      addRecentBoard(board.value.id, board.value.name)
     }
 
     // Refresh board data to get updated participants
@@ -356,7 +356,7 @@ async function handleJoin() {
     joining.value = false
 
     // Subscribe to realtime once we have a participant
-    if (boardIdRef.value) {
+    if (boardDbId.value) {
       subscribeRealtime()
     }
   }
@@ -376,7 +376,7 @@ async function handleVoteSelect(value: string) {
   const voteValue = myVoteValue.value === value ? value : value
 
   try {
-    await submitVote(currentIssueId.value, myParticipant.value.id, boardCode, voteValue)
+    await submitVote(currentIssueId.value, myParticipant.value.id, boardId, voteValue)
     await broadcastVoteSubmitted(myParticipant.value.id)
   }
   catch (e: any) {
@@ -388,7 +388,7 @@ async function handleStartVoting(issueId: string) {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
   try {
-    await $fetch(`/api/boards/${boardCode}/start-voting`, {
+    await $fetch(`/api/boards/${boardId}/start-voting`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${facilitatorToken.value}` },
       body: { issueId },
@@ -410,7 +410,7 @@ async function handleReveal() {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
   try {
-    const result: any = await $fetch(`/api/boards/${boardCode}/reveal`, {
+    const result: any = await $fetch(`/api/boards/${boardId}/reveal`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${facilitatorToken.value}` },
     })
@@ -434,7 +434,7 @@ async function handleReset() {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
   try {
-    await $fetch(`/api/boards/${boardCode}/reset`, {
+    await $fetch(`/api/boards/${boardId}/reset`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${facilitatorToken.value}` },
     })
@@ -452,7 +452,7 @@ async function handleSaveEstimate(value: string) {
   if (!isFacilitator.value || !facilitatorToken.value || !currentIssueId.value) return
 
   try {
-    await $fetch(`/api/boards/${boardCode}/save-estimate`, {
+    await $fetch(`/api/boards/${boardId}/save-estimate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${facilitatorToken.value}` },
       body: {
@@ -473,7 +473,7 @@ async function handleSaveEstimate(value: string) {
 async function handleChangeRole(participantId: string, role: ParticipantRole) {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
-  const { updateRole } = useParticipants(boardCode)
+  const { updateRole } = useParticipants(boardId)
 
   try {
     await updateRole(participantId, role, facilitatorToken.value)
@@ -487,7 +487,7 @@ async function handleChangeRole(participantId: string, role: ParticipantRole) {
 async function handleKick(participantId: string) {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
-  const { removeParticipant } = useParticipants(boardCode)
+  const { removeParticipant } = useParticipants(boardId)
 
   try {
     await removeParticipant(participantId, facilitatorToken.value)
@@ -508,9 +508,9 @@ onMounted(async () => {
   await fetchBoard()
 
   // If already a participant, subscribe to realtime
-  if (myParticipant.value && boardIdRef.value) {
+  if (myParticipant.value && boardDbId.value) {
     if (board.value) {
-      addRecentBoard(board.value.code, board.value.name)
+      addRecentBoard(board.value.id, board.value.name)
     }
     subscribeRealtime()
 

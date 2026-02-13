@@ -3,18 +3,15 @@ export default defineEventHandler(async (event) => {
 
   const displayName = validateDisplayName(body.displayName)
   const deviceId = body.deviceId as string
-  const code = body.code as string
+  const boardId = body.boardId as string
 
   if (!deviceId || typeof deviceId !== 'string') {
     throw createError({ statusCode: 400, message: 'Device ID is required' })
   }
 
-  if (!code || typeof code !== 'string') {
-    throw createError({ statusCode: 400, message: 'Board code is required' })
+  if (!boardId || typeof boardId !== 'string') {
+    throw createError({ statusCode: 400, message: 'Board ID is required' })
   }
-
-  const normalizedCode = code.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-  const formattedCode = normalizedCode.slice(0, 4) + '-' + normalizedCode.slice(4)
 
   const supabase = useServerSupabase()
 
@@ -22,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const { data: board } = await supabase
     .from('boards')
     .select('id, expires_at')
-    .eq('code', formattedCode)
+    .eq('id', boardId)
     .is('deleted_at', null)
     .single()
 

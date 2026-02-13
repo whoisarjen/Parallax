@@ -1,11 +1,9 @@
 export default defineEventHandler(async (event) => {
-  const code = getRouterParam(event, 'code')
+  const boardId = getRouterParam(event, 'id')
 
-  if (!code) {
-    throw createError({ statusCode: 400, message: 'Board code is required' })
+  if (!boardId) {
+    throw createError({ statusCode: 400, message: 'Board ID is required' })
   }
-
-  const normalizedCode = code.replace(/[^A-Z0-9]/gi, '').toUpperCase()
 
   const supabase = useServerSupabase()
 
@@ -16,7 +14,7 @@ export default defineEventHandler(async (event) => {
       participants (*),
       issues (*)
     `)
-    .eq('code', normalizedCode.slice(0, 4) + '-' + normalizedCode.slice(4))
+    .eq('id', boardId)
     .is('deleted_at', null)
     .single()
 

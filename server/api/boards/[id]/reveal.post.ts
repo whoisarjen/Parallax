@@ -1,10 +1,10 @@
 export default defineEventHandler(async (event) => {
-  const code = getRouterParam(event, 'code')
-  if (!code) {
-    throw createError({ statusCode: 400, message: 'Board code is required' })
+  const boardId = getRouterParam(event, 'id')
+  if (!boardId) {
+    throw createError({ statusCode: 400, message: 'Board ID is required' })
   }
 
-  const board = await validateFacilitatorToken(event, code)
+  const board = await validateFacilitatorToken(event, boardId)
 
   const supabase = useServerSupabase()
 

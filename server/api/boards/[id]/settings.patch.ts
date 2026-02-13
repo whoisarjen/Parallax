@@ -1,11 +1,11 @@
 export default defineEventHandler(async (event) => {
-  const code = getRouterParam(event, 'code')
+  const boardId = getRouterParam(event, 'id')
 
-  if (!code) {
-    throw createError({ statusCode: 400, message: 'Board code is required' })
+  if (!boardId) {
+    throw createError({ statusCode: 400, message: 'Board ID is required' })
   }
 
-  const board = await validateFacilitatorToken(event, code)
+  const board = await validateFacilitatorToken(event, boardId)
   const body = await readBody(event)
 
   const updates: Record<string, unknown> = {}

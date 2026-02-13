@@ -1,6 +1,6 @@
 import type { Board, Participant, Issue } from '~/types'
 
-export function useBoard(code: string) {
+export function useBoard(boardId: string) {
   const board = ref<Board | null>(null)
   const participants = ref<Participant[]>([])
   const issues = ref<Issue[]>([])
@@ -14,7 +14,7 @@ export function useBoard(code: string) {
     errorStatus.value = null
 
     try {
-      const data: any = await $fetch(`/api/boards/${code}`)
+      const data: any = await $fetch(`/api/boards/${boardId}`)
       board.value = data as Board
       participants.value = data.participants || []
       issues.value = (data.issues || []).sort(
@@ -31,7 +31,7 @@ export function useBoard(code: string) {
   async function refreshParticipants() {
     if (!board.value) return
     try {
-      const data: any = await $fetch(`/api/boards/${code}`)
+      const data: any = await $fetch(`/api/boards/${boardId}`)
       participants.value = data.participants || []
     } catch {
       // Silently fail on refresh
@@ -41,7 +41,7 @@ export function useBoard(code: string) {
   async function refreshIssues() {
     if (!board.value) return
     try {
-      const data: any = await $fetch(`/api/boards/${code}`)
+      const data: any = await $fetch(`/api/boards/${boardId}`)
       issues.value = (data.issues || []).sort(
         (a: Issue, b: Issue) => a.sort_order - b.sort_order,
       )

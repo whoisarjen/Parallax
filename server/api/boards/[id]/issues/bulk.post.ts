@@ -1,8 +1,8 @@
 export default defineEventHandler(async (event) => {
-  const code = getRouterParam(event, 'code')
+  const boardId = getRouterParam(event, 'id')
 
-  if (!code) {
-    throw createError({ statusCode: 400, message: 'Board code is required' })
+  if (!boardId) {
+    throw createError({ statusCode: 400, message: 'Board ID is required' })
   }
 
   const body = await readBody(event)
@@ -15,16 +15,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Maximum 50 issues per bulk import' })
   }
 
-  const normalizedCode = code.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-  const formattedCode = normalizedCode.slice(0, 4) + '-' + normalizedCode.slice(4)
-
   const supabase = useServerSupabase()
 
   // Find the board
   const { data: board } = await supabase
     .from('boards')
     .select('id')
-    .eq('code', formattedCode)
+    .eq('id', boardId)
     .is('deleted_at', null)
     .single()
 

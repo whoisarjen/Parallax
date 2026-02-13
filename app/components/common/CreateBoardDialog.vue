@@ -86,7 +86,7 @@ import { DECK_CONFIGS } from '~/utils/deck-configs'
 
 const emit = defineEmits<{
   close: []
-  created: [code: string]
+  created: [id: string]
 }>()
 
 const { deviceId, getDisplayName, setDisplayName, setFacilitatorToken, addRecentBoard } = useDeviceIdentity()
@@ -117,9 +117,9 @@ async function handleCreate() {
     })
 
     setDisplayName(displayName.value.trim())
-    setFacilitatorToken(result.board.code, result.facilitatorToken)
-    addRecentBoard(result.board.code, result.board.name)
-    emit('created', result.board.code)
+    setFacilitatorToken(result.board.id, result.facilitatorToken)
+    addRecentBoard(result.board.id, result.board.name)
+    emit('created', result.board.id)
   } catch (e: any) {
     error.value = e.data?.message || 'Failed to create board'
   } finally {

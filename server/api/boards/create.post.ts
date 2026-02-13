@@ -26,29 +26,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 429, message: 'You have reached the maximum of 10 boards. Delete an existing board to create a new one.' })
   }
 
-  // Generate unique board code with collision retry
-  let code: string = ''
-  let attempts = 0
-  do {
-    code = generateBoardCode()
-    const { data: existing } = await supabase
-      .from('boards')
-      .select('id')
-      .eq('code', code)
-      .maybeSingle()
-    if (!existing) break
-    attempts++
-  } while (attempts < 5)
-
-  if (attempts >= 5) {
-    throw createError({ statusCode: 500, message: 'Could not generate unique board code. Please try again.' })
-  }
+  // Generate a display code (kept for DB constraint, not used for routing)
+  const code = generateBoardCode()
 
   // Generate facilitator token
   const facilitatorToken = randomBytes(32).toString('hex')
   const facilitatorTokenHash = createHash('sha256').update(facilitatorToken).digest('hex')
 
-  // Create board
+  // Create board (id is auto-generated UUID v4 by the database)
   const { data: board, error: boardError } = await supabase
     .from('boards')
     .insert({

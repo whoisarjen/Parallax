@@ -5,7 +5,7 @@ interface ParsedJiraInput {
   url: string | null
 }
 
-export function useIssues(boardCode: string) {
+export function useIssues(boardId: string) {
   function parseJiraInput(input: string): ParsedJiraInput {
     const trimmed = input.trim()
     if (!trimmed) return { key: null, url: null }
@@ -52,9 +52,9 @@ export function useIssues(boardCode: string) {
     jiraUrl?: string,
   ): Promise<Issue> {
     const { getFacilitatorToken } = useDeviceIdentity()
-    const token = getFacilitatorToken(boardCode)
+    const token = getFacilitatorToken(boardId)
 
-    const result = await $fetch(`/api/boards/${boardCode}/issues`, {
+    const result = await $fetch(`/api/boards/${boardId}/issues`, {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: {
@@ -70,9 +70,9 @@ export function useIssues(boardCode: string) {
 
   async function deleteIssue(issueId: string) {
     const { getFacilitatorToken } = useDeviceIdentity()
-    const token = getFacilitatorToken(boardCode)
+    const token = getFacilitatorToken(boardId)
 
-    return await $fetch(`/api/boards/${boardCode}/issues/${issueId}`, {
+    return await $fetch(`/api/boards/${boardId}/issues/${issueId}`, {
       method: 'DELETE',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
@@ -80,9 +80,9 @@ export function useIssues(boardCode: string) {
 
   async function reorderIssues(orderedIds: string[]) {
     const { getFacilitatorToken } = useDeviceIdentity()
-    const token = getFacilitatorToken(boardCode)
+    const token = getFacilitatorToken(boardId)
 
-    return await $fetch(`/api/boards/${boardCode}/issues/reorder`, {
+    return await $fetch(`/api/boards/${boardId}/issues/reorder`, {
       method: 'PUT',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: { orderedIds },

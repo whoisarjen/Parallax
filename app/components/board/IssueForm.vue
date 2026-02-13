@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 const props = defineProps<{
-  boardCode: string
+  boardId: string
 }>()
 
 const emit = defineEmits<{
@@ -98,7 +98,7 @@ async function handleAdd() {
   const { key, url } = extractJiraInfo(jiraInput.value)
 
   try {
-    await $fetch(`/api/boards/${props.boardCode}/issues`, {
+    await $fetch(`/api/boards/${props.boardId}/issues`, {
       method: 'POST',
       body: {
         title: title.value.trim(),

@@ -32,20 +32,20 @@ export function useDeviceIdentity() {
     }
   }
 
-  function getFacilitatorToken(boardCode: string): string | null {
+  function getFacilitatorToken(boardId: string): string | null {
     if (import.meta.client) {
-      return localStorage.getItem(`parallax_facilitator_${boardCode}`)
+      return localStorage.getItem(`parallax_facilitator_${boardId}`)
     }
     return null
   }
 
-  function setFacilitatorToken(boardCode: string, token: string) {
+  function setFacilitatorToken(boardId: string, token: string) {
     if (import.meta.client) {
-      localStorage.setItem(`parallax_facilitator_${boardCode}`, token)
+      localStorage.setItem(`parallax_facilitator_${boardId}`, token)
     }
   }
 
-  function getRecentBoards(): Array<{ code: string; name: string; createdAt: string }> {
+  function getRecentBoards(): Array<{ id: string; name: string; createdAt: string }> {
     if (import.meta.client) {
       try {
         return JSON.parse(localStorage.getItem('parallax_recent_boards') || '[]')
@@ -56,10 +56,10 @@ export function useDeviceIdentity() {
     return []
   }
 
-  function addRecentBoard(code: string, name: string) {
+  function addRecentBoard(boardId: string, name: string) {
     if (import.meta.client) {
-      const boards = getRecentBoards().filter(b => b.code !== code)
-      boards.unshift({ code, name, createdAt: new Date().toISOString() })
+      const boards = getRecentBoards().filter(b => b.id !== boardId)
+      boards.unshift({ id: boardId, name, createdAt: new Date().toISOString() })
       localStorage.setItem('parallax_recent_boards', JSON.stringify(boards.slice(0, 20)))
     }
   }

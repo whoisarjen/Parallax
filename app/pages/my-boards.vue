@@ -65,7 +65,7 @@
           <NuxtLink
             v-for="board in owned"
             :key="board.id"
-            :to="`/board/${board.code}`"
+            :to="`/board/${board.id}`"
             class="card-hover group"
           >
             <div class="flex items-start justify-between gap-3">
@@ -73,9 +73,6 @@
                 <h3 class="text-base font-semibold text-surface-100 truncate group-hover:text-primary-300 transition-colors">
                   {{ board.name }}
                 </h3>
-                <p class="text-xs font-mono text-surface-500 mt-1">
-                  {{ board.code }}
-                </p>
               </div>
               <span :class="statusBadgeClass(board.voting_state)">
                 {{ statusLabel(board.voting_state) }}
@@ -105,7 +102,7 @@
           <NuxtLink
             v-for="board in participated"
             :key="board.id"
-            :to="`/board/${board.code}`"
+            :to="`/board/${board.id}`"
             class="card-hover group"
           >
             <div class="flex items-start justify-between gap-3">
@@ -113,9 +110,6 @@
                 <h3 class="text-base font-semibold text-surface-100 truncate group-hover:text-primary-300 transition-colors">
                   {{ board.name }}
                 </h3>
-                <p class="text-xs font-mono text-surface-500 mt-1">
-                  {{ board.code }}
-                </p>
               </div>
               <span :class="statusBadgeClass(board.voting_state)">
                 {{ statusLabel(board.voting_state) }}

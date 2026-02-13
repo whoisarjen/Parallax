@@ -9,13 +9,13 @@ export function useVoting() {
   async function submitVote(
     issueId: string,
     participantId: string,
-    boardCode: string,
+    boardId: string,
     value: string,
   ) {
     submitting.value = true
     try {
       const { deviceId } = useDeviceIdentity()
-      const result = await $fetch(`/api/boards/${boardCode}/vote`, {
+      const result = await $fetch(`/api/boards/${boardId}/vote`, {
         method: 'POST',
         body: {
           issueId,

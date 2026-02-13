@@ -13,19 +13,20 @@
 
       <form @submit.prevent="handleJoin" class="space-y-4">
         <div>
-          <label for="board-code" class="block text-sm font-medium text-surface-300 mb-1.5">
-            Board Code
+          <label for="board-link" class="block text-sm font-medium text-surface-300 mb-1.5">
+            Board Link or ID
           </label>
           <input
-            id="board-code"
-            v-model="boardCodeDisplay"
-            @input="onCodeInput"
-            class="input font-mono text-lg tracking-wider text-center uppercase"
-            placeholder="ABCD-1234"
-            maxlength="9"
+            id="board-link"
+            v-model="boardInput"
+            class="input text-sm"
+            placeholder="Paste board link or UUID..."
             autofocus
             required
           />
+          <p class="text-xs text-surface-500 mt-1">
+            Paste the full board URL or the board ID shared with you
+          </p>
         </div>
 
         <div>
@@ -49,7 +50,7 @@
         <button
           type="submit"
           class="btn-primary w-full"
-          :disabled="joining || !isCodeValid || !displayName.trim()"
+          :disabled="joining || !isInputValid || !displayName.trim()"
         >
           {{ joining ? 'Joining...' : 'Join Board' }}
         </button>
@@ -61,33 +62,25 @@
 <script setup lang="ts">
 const emit = defineEmits<{
   close: []
-  joined: [code: string]
+  joined: [boardId: string]
 }>()
 
 const { getDisplayName } = useDeviceIdentity()
 
-const boardCodeDisplay = ref('')
+const boardInput = ref('')
 const displayName = ref(getDisplayName())
 const joining = ref(false)
 const error = ref('')
 
-const isCodeValid = computed(() => isValidBoardCode(boardCodeDisplay.value))
-
-function onCodeInput(event: Event) {
-  const input = event.target as HTMLInputElement
-  const raw = input.value.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-  boardCodeDisplay.value = formatBoardCode(raw)
-}
+const extractedBoardId = computed(() => extractBoardId(boardInput.value))
+const isInputValid = computed(() => !!extractedBoardId.value)
 
 async function handleJoin() {
-  if (!isCodeValid.value || !displayName.value.trim()) return
+  if (!isInputValid.value || !displayName.value.trim()) return
 
   joining.value = true
   error.value = ''
 
-  const normalized = normalizeBoardCode(boardCodeDisplay.value)
-  const code = normalized.slice(0, 4) + '-' + normalized.slice(4)
-
-  emit('joined', code)
+  emit('joined', extractedBoardId.value!)
 }
 </script>

@@ -152,7 +152,7 @@ async function handleSave() {
     : selectedTimer.value
 
   try {
-    await $fetch(`/api/boards/${props.board.code}/settings`, {
+    await $fetch(`/api/boards/${props.board.id}/settings`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${props.facilitatorToken}`,
