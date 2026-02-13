@@ -1,9 +1,24 @@
 <template>
   <div class="flex flex-col h-full">
-    <div class="px-4 py-3 border-b border-surface-800">
+    <div class="px-4 py-3 border-b border-surface-800 flex items-center justify-between">
       <h2 class="text-sm font-semibold text-surface-300 uppercase tracking-wider">
         Participants ({{ participants.length }})
       </h2>
+      <button
+        @click.stop="copyInviteLink"
+        class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+        :class="linkCopied
+          ? 'bg-emerald-500/15 text-emerald-400'
+          : 'bg-primary-500/10 text-primary-400 hover:bg-primary-500/20'"
+      >
+        <svg v-if="linkCopied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
+        {{ linkCopied ? 'Copied!' : 'Invite' }}
+      </button>
     </div>
 
     <div class="flex-1 overflow-y-auto p-3 space-y-1">
@@ -138,6 +153,7 @@ const props = defineProps<{
   votedParticipantIds: Set<string>
   votingActive: boolean
   isFacilitator: boolean
+  boardId: string
 }>()
 
 const emit = defineEmits<{
@@ -146,6 +162,19 @@ const emit = defineEmits<{
 }>()
 
 const openMenuId = ref<string | null>(null)
+const linkCopied = ref(false)
+
+async function copyInviteLink() {
+  const url = `${window.location.origin}/board/${props.boardId}`
+  try {
+    await navigator.clipboard.writeText(url)
+    linkCopied.value = true
+    setTimeout(() => { linkCopied.value = false }, 2000)
+  }
+  catch {
+    // Fallback: do nothing
+  }
+}
 
 function getInitial(name: string): string {
   return name.charAt(0).toUpperCase()

@@ -8,6 +8,7 @@ export function useBoard(boardId: string) {
   const error = ref<string | null>(null)
   const errorStatus = ref<number | null>(null)
 
+  // Initial load only - after this, all updates come through WebSocket
   async function fetchBoard() {
     loading.value = true
     error.value = null
@@ -28,30 +29,6 @@ export function useBoard(boardId: string) {
     }
   }
 
-  async function refreshParticipants() {
-    if (!board.value) return
-    try {
-      const data: any = await $fetch(`/api/boards/${boardId}`)
-      participants.value = data.participants || []
-    } catch {
-      // Silently fail on refresh
-    }
-  }
-
-  async function refreshIssues() {
-    if (!board.value) return
-    try {
-      const data: any = await $fetch(`/api/boards/${boardId}`)
-      issues.value = (data.issues || []).sort(
-        (a: Issue, b: Issue) => a.sort_order - b.sort_order,
-      )
-      // Also update board state
-      board.value = data as Board
-    } catch {
-      // Silently fail on refresh
-    }
-  }
-
   return {
     board,
     participants,
@@ -60,7 +37,5 @@ export function useBoard(boardId: string) {
     error,
     errorStatus,
     fetchBoard,
-    refreshParticipants,
-    refreshIssues,
   }
 }

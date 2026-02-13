@@ -1,10 +1,7 @@
 import type { Vote } from '~/types'
 
 export function useVoting() {
-  const supabase = useSupabase()
-
   const myVote = ref<Vote | null>(null)
-  const submitting = ref(false)
 
   async function submitVote(
     issueId: string,
@@ -12,7 +9,17 @@ export function useVoting() {
     boardId: string,
     value: string,
   ) {
-    submitting.value = true
+    // Optimistic: update local vote immediately so card shows selected
+    const previousVote = myVote.value
+    myVote.value = {
+      id: crypto.randomUUID(),
+      issue_id: issueId,
+      participant_id: participantId,
+      board_id: boardId,
+      value,
+      voted_at: new Date().toISOString(),
+    } as Vote
+
     try {
       const { deviceId } = useDeviceIdentity()
       const result = await $fetch(`/api/boards/${boardId}/vote`, {
@@ -24,15 +31,19 @@ export function useVoting() {
           deviceId: deviceId.value,
         },
       })
+      // Update with server response (has real ID)
       myVote.value = result as Vote
       return result as Vote
     }
-    finally {
-      submitting.value = false
+    catch (e) {
+      // Revert on failure
+      myVote.value = previousVote
+      throw e
     }
   }
 
   async function fetchVotesForIssue(issueId: string): Promise<Vote[]> {
+    const supabase = useSupabase()
     const { data, error } = await supabase
       .from('votes')
       .select('*')
@@ -52,7 +63,6 @@ export function useVoting() {
 
   return {
     myVote,
-    submitting: readonly(submitting),
     submitVote,
     fetchVotesForIssue,
     clearMyVote,

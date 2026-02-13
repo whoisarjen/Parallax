@@ -1,4 +1,4 @@
-import type { Participant, Vote, VotingState } from '~/types'
+import type { Board, Participant, Issue, Vote, VotingState } from '~/types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface BroadcastVoteSubmitted {
@@ -21,10 +21,10 @@ export function useBoardRealtime(
   boardId: string,
   boardDbId: Ref<string | undefined>,
   participant: Ref<Participant | undefined>,
-  callbacks: {
-    onParticipantsChanged?: () => void
-    onIssuesChanged?: () => void
-    onBoardChanged?: () => void
+  data: {
+    board: Ref<Board | null>
+    participants: Ref<Participant[]>
+    issues: Ref<Issue[]>
   },
 ) {
   const supabase = useSupabase()
@@ -32,7 +32,7 @@ export function useBoardRealtime(
   const onlineParticipantIds = ref<Set<string>>(new Set())
   const voteNotifications = ref<Set<string>>(new Set())
   const revealedVotes = ref<Vote[]>([])
-  const votingState = ref<VotingState>('idle')
+  const votingState = ref<VotingState | null>(null)
   const currentIssueId = ref<string | null>(null)
   const timerRunning = ref(false)
   const timerDuration = ref(0)
@@ -40,17 +40,22 @@ export function useBoardRealtime(
 
   let channel: RealtimeChannel | null = null
   let subscribed = false
-
-  function getChannelName() {
-    return `board:${boardId}`
-  }
+  let subscribing = false
+  let retryTimeout: ReturnType<typeof setTimeout> | null = null
 
   function subscribe() {
-    if (subscribed || !boardDbId.value) return
+    // Guard: don't subscribe if already subscribed/subscribing, or board not loaded
+    if (subscribed || subscribing || !boardDbId.value) return
 
-    const channelName = getChannelName()
+    subscribing = true
+    if (retryTimeout) {
+      clearTimeout(retryTimeout)
+      retryTimeout = null
+    }
 
-    // Guard against duplicate channels
+    const channelName = `board:${boardId}`
+
+    // Remove any existing channel with same name
     const existing = supabase.getChannels().find(ch => ch.topic === `realtime:${channelName}`)
     if (existing) {
       supabase.removeChannel(existing)
@@ -58,10 +63,14 @@ export function useBoardRealtime(
 
     connectionState.value = 'connecting'
 
+    // Use boardId directly for filters - it's always the correct UUID
+    // (same value as boardDbId.value but without timing dependency)
+    const dbId = boardId
+
     channel = supabase.channel(channelName, {
       config: {
         broadcast: { ack: true, self: true },
-        presence: { key: participant.value?.id || 'anonymous' },
+        presence: { key: participant.value?.id || `anon-${Date.now()}` },
       },
     })
 
@@ -73,9 +82,7 @@ export function useBoardRealtime(
       for (const key of Object.keys(state)) {
         const presences = state[key] as Array<{ participant_id?: string }>
         for (const p of presences) {
-          if (p.participant_id) {
-            ids.add(p.participant_id)
-          }
+          if (p.participant_id) ids.add(p.participant_id)
         }
       }
       onlineParticipantIds.value = ids
@@ -84,9 +91,7 @@ export function useBoardRealtime(
     channel.on('presence', { event: 'join' }, ({ newPresences }) => {
       const ids = new Set(onlineParticipantIds.value)
       for (const p of newPresences as Array<{ participant_id?: string }>) {
-        if (p.participant_id) {
-          ids.add(p.participant_id)
-        }
+        if (p.participant_id) ids.add(p.participant_id)
       }
       onlineParticipantIds.value = ids
     })
@@ -94,37 +99,33 @@ export function useBoardRealtime(
     channel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
       const ids = new Set(onlineParticipantIds.value)
       for (const p of leftPresences as Array<{ participant_id?: string }>) {
-        if (p.participant_id) {
-          ids.delete(p.participant_id)
-        }
+        if (p.participant_id) ids.delete(p.participant_id)
       }
       onlineParticipantIds.value = ids
     })
 
     // --- Broadcast events ---
     channel.on('broadcast', { event: 'vote_submitted' }, ({ payload }) => {
-      const data = payload as BroadcastVoteSubmitted
-      if (data.participantId) {
+      const d = payload as BroadcastVoteSubmitted
+      if (d.participantId) {
         const updated = new Set(voteNotifications.value)
-        updated.add(data.participantId)
+        updated.add(d.participantId)
         voteNotifications.value = updated
       }
     })
 
     channel.on('broadcast', { event: 'votes_revealed' }, ({ payload }) => {
-      const data = payload as BroadcastVotesRevealed
-      revealedVotes.value = data.votes || []
+      const d = payload as BroadcastVotesRevealed
+      revealedVotes.value = d.votes || []
       votingState.value = 'revealed'
     })
 
     channel.on('broadcast', { event: 'voting_started' }, ({ payload }) => {
-      const data = payload as BroadcastVotingStarted
+      const d = payload as BroadcastVotingStarted
       votingState.value = 'voting'
-      currentIssueId.value = data.issueId
+      currentIssueId.value = d.issueId
       voteNotifications.value = new Set()
       revealedVotes.value = []
-      callbacks.onIssuesChanged?.()
-      callbacks.onBoardChanged?.()
     })
 
     channel.on('broadcast', { event: 'voting_reset' }, () => {
@@ -132,13 +133,12 @@ export function useBoardRealtime(
       currentIssueId.value = null
       voteNotifications.value = new Set()
       revealedVotes.value = []
-      callbacks.onBoardChanged?.()
     })
 
     channel.on('broadcast', { event: 'timer_started' }, ({ payload }) => {
-      const data = payload as BroadcastTimerEvent
+      const d = payload as BroadcastTimerEvent
       timerRunning.value = true
-      timerDuration.value = data.duration || 0
+      timerDuration.value = d.duration || 0
     })
 
     channel.on('broadcast', { event: 'timer_stopped' }, () => {
@@ -146,62 +146,80 @@ export function useBoardRealtime(
       timerDuration.value = 0
     })
 
-    // --- Postgres Changes ---
+    // --- Postgres Changes: directly update local state from WS payloads ---
+
+    // Board changes
     channel.on(
       'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'boards',
-        filter: `id=eq.${boardDbId.value}`,
-      },
+      { event: '*', schema: 'public', table: 'boards', filter: `id=eq.${dbId}` },
       (payload) => {
-        if (payload.new && typeof payload.new === 'object') {
-          const updated = payload.new as { voting_state?: VotingState; current_issue_id?: string | null }
-          if (updated.voting_state) {
-            votingState.value = updated.voting_state
-          }
-          if ('current_issue_id' in updated) {
-            currentIssueId.value = updated.current_issue_id ?? null
+        if (payload.eventType === 'UPDATE' && payload.new && data.board.value) {
+          const updated = payload.new as Partial<Board>
+          data.board.value = { ...data.board.value, ...updated }
+          if (updated.voting_state) votingState.value = updated.voting_state
+          if ('current_issue_id' in updated) currentIssueId.value = updated.current_issue_id ?? null
+        }
+      },
+    )
+
+    // Participant changes
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'participants', filter: `board_id=eq.${dbId}` },
+      (payload) => {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          const newP = payload.new as Participant
+          if (!data.participants.value.some(p => p.id === newP.id)) {
+            data.participants.value = [...data.participants.value, newP]
           }
         }
-        callbacks.onBoardChanged?.()
+        else if (payload.eventType === 'UPDATE' && payload.new) {
+          const updatedP = payload.new as Participant
+          data.participants.value = data.participants.value.map(p =>
+            p.id === updatedP.id ? updatedP : p,
+          )
+        }
+        else if (payload.eventType === 'DELETE' && payload.old) {
+          const oldP = payload.old as { id: string }
+          data.participants.value = data.participants.value.filter(p => p.id !== oldP.id)
+        }
       },
     )
 
+    // Issue changes
     channel.on(
       'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'participants',
-        filter: `board_id=eq.${boardDbId.value}`,
-      },
-      () => {
-        callbacks.onParticipantsChanged?.()
-      },
-    )
-
-    channel.on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'issues',
-        filter: `board_id=eq.${boardDbId.value}`,
-      },
-      () => {
-        callbacks.onIssuesChanged?.()
+      { event: '*', schema: 'public', table: 'issues', filter: `board_id=eq.${dbId}` },
+      (payload) => {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          const newI = payload.new as Issue
+          if (!data.issues.value.some(i => i.id === newI.id)) {
+            data.issues.value = [...data.issues.value, newI].sort(
+              (a, b) => a.sort_order - b.sort_order,
+            )
+          }
+        }
+        else if (payload.eventType === 'UPDATE' && payload.new) {
+          const updatedI = payload.new as Issue
+          data.issues.value = data.issues.value
+            .map(i => (i.id === updatedI.id ? updatedI : i))
+            .sort((a, b) => a.sort_order - b.sort_order)
+        }
+        else if (payload.eventType === 'DELETE' && payload.old) {
+          const oldI = payload.old as { id: string }
+          data.issues.value = data.issues.value.filter(i => i.id !== oldI.id)
+        }
       },
     )
 
     // --- Subscribe ---
     channel.subscribe(async (status) => {
+      subscribing = false
+
       switch (status) {
         case 'SUBSCRIBED':
           connectionState.value = 'connected'
           subscribed = true
-          // Track presence
           if (participant.value) {
             await channel!.track({
               participant_id: participant.value.id,
@@ -212,9 +230,17 @@ export function useBoardRealtime(
           break
         case 'CHANNEL_ERROR':
           connectionState.value = 'error'
+          subscribed = false
+          channel = null
+          // Retry after 3 seconds
+          retryTimeout = setTimeout(() => subscribe(), 3000)
           break
         case 'TIMED_OUT':
           connectionState.value = 'error'
+          subscribed = false
+          channel = null
+          // Retry after 5 seconds
+          retryTimeout = setTimeout(() => subscribe(), 5000)
           break
         case 'CLOSED':
           connectionState.value = 'disconnected'
@@ -235,7 +261,7 @@ export function useBoardRealtime(
 
   // --- Broadcast helpers ---
   async function broadcastVoteSubmitted(participantId: string) {
-    if (!channel) return
+    if (!channel || !subscribed) return
     await channel.send({
       type: 'broadcast',
       event: 'vote_submitted',
@@ -244,7 +270,7 @@ export function useBoardRealtime(
   }
 
   async function broadcastVotesRevealed(votes: Vote[]) {
-    if (!channel) return
+    if (!channel || !subscribed) return
     await channel.send({
       type: 'broadcast',
       event: 'votes_revealed',
@@ -253,7 +279,7 @@ export function useBoardRealtime(
   }
 
   async function broadcastVotingStarted(issueId: string) {
-    if (!channel) return
+    if (!channel || !subscribed) return
     await channel.send({
       type: 'broadcast',
       event: 'voting_started',
@@ -262,7 +288,7 @@ export function useBoardRealtime(
   }
 
   async function broadcastVotingReset() {
-    if (!channel) return
+    if (!channel || !subscribed) return
     await channel.send({
       type: 'broadcast',
       event: 'voting_reset',
@@ -271,7 +297,7 @@ export function useBoardRealtime(
   }
 
   async function broadcastTimerStarted(duration: number) {
-    if (!channel) return
+    if (!channel || !subscribed) return
     await channel.send({
       type: 'broadcast',
       event: 'timer_started',
@@ -280,7 +306,7 @@ export function useBoardRealtime(
   }
 
   async function broadcastTimerStopped() {
-    if (!channel) return
+    if (!channel || !subscribed) return
     await channel.send({
       type: 'broadcast',
       event: 'timer_stopped',
@@ -289,37 +315,26 @@ export function useBoardRealtime(
   }
 
   async function cleanup() {
+    if (retryTimeout) {
+      clearTimeout(retryTimeout)
+      retryTimeout = null
+    }
     if (channel) {
-      try {
-        if (subscribed) {
-          await channel.untrack()
-        }
-      }
-      catch {
-        // Ignore untrack errors during cleanup
-      }
-      try {
-        supabase.removeChannel(channel)
-      }
-      catch {
-        // Ignore removal errors
-      }
+      try { if (subscribed) await channel.untrack() }
+      catch { /* ignore */ }
+      try { supabase.removeChannel(channel) }
+      catch { /* ignore */ }
       channel = null
       subscribed = false
+      subscribing = false
       connectionState.value = 'disconnected'
     }
   }
 
-  // Handle tab close
   function handleBeforeUnload() {
     if (channel && subscribed) {
-      // Use synchronous untrack attempt; channel removal is best-effort
-      try {
-        channel.untrack()
-      }
-      catch {
-        // Best effort on page unload
-      }
+      try { channel.untrack() }
+      catch { /* best effort */ }
     }
   }
 
@@ -327,18 +342,12 @@ export function useBoardRealtime(
     window.addEventListener('beforeunload', handleBeforeUnload)
   }
 
-  // Watch for boardDbId becoming available to auto-subscribe
   watch(boardDbId, (newId) => {
-    if (newId && !subscribed) {
-      subscribe()
-    }
+    if (newId && !subscribed && !subscribing) subscribe()
   })
 
-  // Watch for participant changes to re-track presence
   watch(participant, () => {
-    if (subscribed && participant.value) {
-      trackPresence()
-    }
+    if (subscribed && participant.value) trackPresence()
   })
 
   onBeforeUnmount(() => {

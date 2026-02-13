@@ -98,6 +98,14 @@
 
     <!-- Board view -->
     <template v-else-if="board && myParticipant">
+      <!-- Connection status banner -->
+      <div
+        v-if="connectionState === 'error' || connectionState === 'connecting'"
+        class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs text-amber-400"
+      >
+        {{ connectionState === 'connecting' ? 'Connecting to live updates...' : 'Connection lost. Reconnecting...' }}
+      </div>
+
       <BoardBoardHeader
         :board="board"
         :online-count="onlineParticipantIds.size"
@@ -117,8 +125,6 @@
             :is-facilitator="isFacilitator"
             :board-id="boardId"
             @start-voting="handleStartVoting"
-            @issue-added="refreshIssues"
-            @issue-deleted="refreshIssues"
           />
         </aside>
 
@@ -147,9 +153,16 @@
             v-if="activeVotingState === 'voting' && canVote"
             class="border-t border-surface-800 bg-surface-900/50 backdrop-blur-sm"
           >
+            <!-- Vote status hint -->
+            <div v-if="myVoteValue" class="text-center pt-3 pb-0">
+              <span class="text-xs text-surface-500">
+                You voted <span class="font-bold text-primary-400">{{ myVoteValue }}</span>
+                &mdash; tap another card to change
+              </span>
+            </div>
             <BoardCardDeck
               :cards="deckCards"
-              :disabled="submittingVote"
+              :disabled="false"
               :selected-value="myVoteValue"
               @select="handleVoteSelect"
             />
@@ -168,6 +181,7 @@
             :voted-participant-ids="voteNotifications"
             :voting-active="activeVotingState === 'voting'"
             :is-facilitator="isFacilitator"
+            :board-id="boardId"
             @change-role="handleChangeRole"
             @kick="handleKick"
           />
@@ -218,7 +232,7 @@
         :board="board"
         :facilitator-token="facilitatorToken"
         @close="showSettings = false"
-        @saved="fetchBoard"
+        @saved="showSettings = false"
       />
     </template>
   </div>
@@ -239,7 +253,7 @@ const boardId = route.params.id as string
 const { deviceId, getDisplayName, setDisplayName, getFacilitatorToken, addRecentBoard } = useDeviceIdentity()
 
 // Board data
-const { board, participants, issues, loading, error, errorStatus, fetchBoard, refreshParticipants, refreshIssues } = useBoard(boardId)
+const { board, participants, issues, loading, error, errorStatus, fetchBoard } = useBoard(boardId)
 
 // Mobile tab
 const mobileTab = ref<'issues' | 'vote' | 'people'>('vote')
@@ -252,7 +266,7 @@ const joinError = ref('')
 const joining = ref(false)
 
 // Voting
-const { myVote, submitting: submittingVote, submitVote, clearMyVote } = useVoting()
+const { myVote, submitVote, clearMyVote } = useVoting()
 
 // Current participant for this device
 const myParticipant = computed<Participant | undefined>(() => {
@@ -292,28 +306,26 @@ const {
   revealedVotes,
   votingState: realtimeVotingState,
   currentIssueId: realtimeCurrentIssueId,
+  connectionState,
   subscribe: subscribeRealtime,
   broadcastVoteSubmitted,
   broadcastVotesRevealed,
   broadcastVotingStarted,
   broadcastVotingReset,
 } = useBoardRealtime(boardId, boardDbId, myParticipant, {
-  onParticipantsChanged: () => refreshParticipants(),
-  onIssuesChanged: () => refreshIssues(),
-  onBoardChanged: () => {
-    // Refresh board to get latest state
-    fetchBoard()
-  },
+  board,
+  participants,
+  issues,
 })
 
 // Active voting state (prefer realtime, fallback to board data)
 const activeVotingState = computed(() => {
-  return realtimeVotingState.value || board.value?.voting_state || 'idle'
+  return realtimeVotingState.value ?? board.value?.voting_state ?? 'idle'
 })
 
 // Current issue ID
 const currentIssueId = computed(() => {
-  return realtimeCurrentIssueId.value || board.value?.current_issue_id || null
+  return realtimeCurrentIssueId.value ?? board.value?.current_issue_id ?? null
 })
 
 // Current issue object
@@ -372,14 +384,21 @@ async function handleJoin() {
 async function handleVoteSelect(value: string) {
   if (!myParticipant.value || !currentIssueId.value) return
 
-  // Toggle: clicking same card deselects (we still send the vote though)
-  const voteValue = myVoteValue.value === value ? value : value
+  // Optimistic: mark as voted immediately
+  const updated = new Set(voteNotifications.value)
+  updated.add(myParticipant.value.id)
+  voteNotifications.value = updated
 
+  // submitVote is already optimistic (updates myVote instantly)
   try {
-    await submitVote(currentIssueId.value, myParticipant.value.id, boardId, voteValue)
-    await broadcastVoteSubmitted(myParticipant.value.id)
+    await submitVote(currentIssueId.value, myParticipant.value.id, boardId, value)
+    broadcastVoteSubmitted(myParticipant.value.id)
   }
   catch (e: any) {
+    // Revert vote notification on failure
+    const reverted = new Set(voteNotifications.value)
+    reverted.delete(myParticipant.value!.id)
+    voteNotifications.value = reverted
     console.error('Failed to submit vote:', e)
   }
 }
@@ -387,21 +406,28 @@ async function handleVoteSelect(value: string) {
 async function handleStartVoting(issueId: string) {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
+  // Optimistic: update UI immediately
+  realtimeVotingState.value = 'voting'
+  realtimeCurrentIssueId.value = issueId
+  clearMyVote()
+  voteNotifications.value = new Set()
+  revealedVotes.value = []
+  mobileTab.value = 'vote'
+
+  // API + broadcast in background
   try {
     await $fetch(`/api/boards/${boardId}/start-voting`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${facilitatorToken.value}` },
       body: { issueId },
     })
-
-    clearMyVote()
-    await broadcastVotingStarted(issueId)
-    await fetchBoard()
-
-    // Switch to vote tab on mobile
-    mobileTab.value = 'vote'
+    broadcastVotingStarted(issueId)
   }
   catch (e: any) {
+    // Revert on failure
+    realtimeVotingState.value = null
+    realtimeCurrentIssueId.value = null
+    fetchBoard()
     console.error('Failed to start voting:', e)
   }
 }
@@ -409,41 +435,49 @@ async function handleStartVoting(issueId: string) {
 async function handleReveal() {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
+  // Optimistic: show revealed state immediately
+  realtimeVotingState.value = 'revealed'
+
   try {
     const result: any = await $fetch(`/api/boards/${boardId}/reveal`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${facilitatorToken.value}` },
     })
-
-    await broadcastVotesRevealed(result.votes as Vote[])
-    await fetchBoard()
+    revealedVotes.value = result.votes as Vote[]
+    broadcastVotesRevealed(result.votes as Vote[])
   }
   catch (e: any) {
+    // Revert on failure
+    realtimeVotingState.value = 'voting'
+    fetchBoard()
     console.error('Failed to reveal votes:', e)
   }
 }
 
 async function handleRevote() {
   if (!isFacilitator.value || !facilitatorToken.value || !currentIssueId.value) return
-
-  // Start voting on the same issue again
   await handleStartVoting(currentIssueId.value)
 }
 
 async function handleReset() {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
+  // Optimistic: reset UI immediately
+  realtimeVotingState.value = 'idle'
+  realtimeCurrentIssueId.value = null
+  clearMyVote()
+  voteNotifications.value = new Set()
+  revealedVotes.value = []
+
   try {
     await $fetch(`/api/boards/${boardId}/reset`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${facilitatorToken.value}` },
     })
-
-    clearMyVote()
-    await broadcastVotingReset()
-    await fetchBoard()
+    broadcastVotingReset()
   }
   catch (e: any) {
+    fetchBoard()
     console.error('Failed to reset voting:', e)
   }
 }
@@ -451,21 +485,34 @@ async function handleReset() {
 async function handleSaveEstimate(value: string) {
   if (!isFacilitator.value || !facilitatorToken.value || !currentIssueId.value) return
 
+  // Optimistic: reset voting state and update issue estimate locally
+  const savedIssueId = currentIssueId.value
+  realtimeVotingState.value = 'idle'
+  realtimeCurrentIssueId.value = null
+  clearMyVote()
+  voteNotifications.value = new Set()
+  revealedVotes.value = []
+
+  // Optimistic: mark issue as estimated locally
+  const issueIndex = issues.value.findIndex(i => i.id === savedIssueId)
+  if (issueIndex >= 0) {
+    issues.value[issueIndex] = {
+      ...issues.value[issueIndex],
+      status: 'estimated',
+      final_estimate: value,
+    }
+  }
+
   try {
     await $fetch(`/api/boards/${boardId}/save-estimate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${facilitatorToken.value}` },
-      body: {
-        issueId: currentIssueId.value,
-        estimate: value,
-      },
+      body: { issueId: savedIssueId, estimate: value },
     })
-
-    clearMyVote()
-    await broadcastVotingReset()
-    await fetchBoard()
+    broadcastVotingReset()
   }
   catch (e: any) {
+    fetchBoard()
     console.error('Failed to save estimate:', e)
   }
 }
@@ -473,13 +520,22 @@ async function handleSaveEstimate(value: string) {
 async function handleChangeRole(participantId: string, role: ParticipantRole) {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
-  const { updateRole } = useParticipants(boardId)
+  // Optimistic: update role locally
+  const idx = participants.value.findIndex(p => p.id === participantId)
+  const previousRole = idx >= 0 ? participants.value[idx].role : null
+  if (idx >= 0) {
+    participants.value[idx] = { ...participants.value[idx], role }
+  }
 
+  const { updateRole } = useParticipants(boardId)
   try {
     await updateRole(participantId, role, facilitatorToken.value)
-    await refreshParticipants()
   }
   catch (e: any) {
+    // Revert on failure
+    if (idx >= 0 && previousRole) {
+      participants.value[idx] = { ...participants.value[idx], role: previousRole }
+    }
     console.error('Failed to update role:', e)
   }
 }
@@ -487,13 +543,19 @@ async function handleChangeRole(participantId: string, role: ParticipantRole) {
 async function handleKick(participantId: string) {
   if (!isFacilitator.value || !facilitatorToken.value) return
 
-  const { removeParticipant } = useParticipants(boardId)
+  // Optimistic: remove from list immediately
+  const removed = participants.value.find(p => p.id === participantId)
+  participants.value = participants.value.filter(p => p.id !== participantId)
 
+  const { removeParticipant } = useParticipants(boardId)
   try {
     await removeParticipant(participantId, facilitatorToken.value)
-    await refreshParticipants()
   }
   catch (e: any) {
+    // Revert on failure
+    if (removed) {
+      participants.value = [...participants.value, removed]
+    }
     console.error('Failed to remove participant:', e)
   }
 }
@@ -513,12 +575,6 @@ onMounted(async () => {
       addRecentBoard(board.value.id, board.value.name)
     }
     subscribeRealtime()
-
-    // Sync initial voting state
-    if (board.value) {
-      realtimeVotingState.value = board.value.voting_state
-      realtimeCurrentIssueId.value = board.value.current_issue_id
-    }
   }
 })
 
