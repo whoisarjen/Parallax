@@ -71,6 +71,12 @@ definePageMeta({
   layout: 'default',
 })
 
+useHead({
+  script: [
+    { src: 'https://beamback.whoisarjen.com/widget.js', 'data-api-key': 'ak_PNgFTP-NnXj4e8-EUmu5K', defer: true },
+  ],
+})
+
 useScrollReveal()
 
 const { openCreateDialog } = useCreateDialog()
